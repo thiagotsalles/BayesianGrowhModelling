@@ -3,3 +3,5 @@ old/
 *.cdr
 *.tif
 *.docx
+*.txt
+*.Rhistory
