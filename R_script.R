@@ -1,39 +1,16 @@
-# Script used in the research paper "Modelling weight growth of Santa
-# Ines sheep using Bayesian approach". Any doubts or comments should be
-# addressed to thiagotsalles@gmail.com
-
-#This script requires OpenBUGS to be already installed on the computer
 
 # Load libraries
 library(R2OpenBUGS)
 library(coda)
 library(nortest)
 
-# Set working directory
-setwd("C:/my_dir")
-
-# Sample (Teixeira Neto et al., 2016)
-x <- c(0, 30, 60, 90, 120, 150, 180, 210)
-y <- c(3.4, 10.1, 17.6, 21.3, 23.8, 27, 31.7, 33.6)
+# Sample
+sampl <- read.csv("sample.csv", header=T, sep=";")
+x <- sampl$Age
+y <- sampl$Weight
 
 # Prior information about weight
-x.sarm <- c(0, 28, 56, 84, 112, 140, 168, 196) # SARMENTO et al. (2006)
-y.sarm <- c(3.5, 8.3, 12.7, 16.4, 19.5, 21.4, 22.2, 23.2)
-
-x.malhad <- c(0, 60, 120, 180, 240, 300, 365) # MALHADO et al. (2008)
-y.malhad <- c(3.42, 11.98, 16.21, 21.01, 24.04, 24.65, 31.09)
-
-x.car <- c(0, 60, 90, 120, 180, 365) # CARNEIRO et al. (2010)
-y.car <- c(3.72, 11.61, 15.89, 18.73, 28.53, 37.05)
-
-x.o <- c(0, 28, 56, 112, 350) # Ó et al. (2012)
-y.o <- c(3.38, 6.3, 9.4, 13.5, 25.79)
-
-x.teix <- c(0, 60, 120, 180, 240, 300, 360) # TEIXEIRA et al. (2012)
-y.teix <- c(3.00, 11.73, 17.06, 23.35, 24.85, 26.97, 27.78)
-
-x.santos <- c(0, 56, 112, 168, 224, 280, 336) # SANTOS et al. (2014)
-y.santos <- c(3.37, 11.6, 17.62, 21.51, 24.01, 25.72, 26.98)
+prior_info <- read.csv("prior_info.csv", header=T, sep=";")
 
 # Items required to fit the model with OpenBUGS software (Bayesian
 # approach). They are the sample size, the names of the variables, the
@@ -45,15 +22,17 @@ inits.gomp <- function() {list(alpha=30.0, beta=0.9, gamma=0.01,
                                tau2=1.0)}
 
 # Function for calculating BIC
+# res = residuals and df = degrees of freedom
 BIC_func = function(y, res, df=4) {
   n = length(y)
   w = rep(1, n)
   ll = 0.5 *
     (sum(log(w)) - n * (log(2 * pi) + 1 - log(n) + log(sum(w * res^2))))
-  bic <- -2 * ll + log(n) * df
+  bic = -2 * ll + log(n) * df
 }
 
 # Function for calculating RMSE
+# res = residuals
 RMSE = function(res) {
   n = length(res)
   sq_err = 0
@@ -63,91 +42,58 @@ RMSE = function(res) {
   rmse = sqrt(sq_err / n)
 }
 
+# Function for calculating adjusted R²
+# k = numer of regressors, rse = residual standard error
+r2Adj = function(y, rse, k=3) {
+  r2 = 1 - (rse ^ 2 * (length(y) - 3) / sum((y - mean(y)) ^ 2))
+  r2.adj = 1 - ((length(y) - 1) / (length(y) - (k + 1))) * (1 - r2)
+}
+
 #### ==================== FREQUENTIST APPROACH ==================== ####
-# Model fit (nonlinear least sqares)
+# Model fit (Gompertz, nonlinear least sqares)
 gomp <- nls(y ~ (alpha * exp(-beta * exp(-gamma * x))),
             start=c(alpha=30.0, beta=0.9, gamma=0.01))
 
 # Results table
-results.freq <- matrix(c(coefficients(gomp), confint(gomp)),
-                       nrow=3, ncol=3)
-
-colnames(results.freq) <- c("Estimate",	"CI lower limit",
-                            "CI upper limit")
-
-rownames(results.freq) <- c("alpha", "beta", "gamma")
+results.freq <- data.frame("Estimate"=coefficients(gomp),
+                           "CI_lower_limit"=confint(gomp)[, 1],
+                           "CI_upper_limit"=confint(gomp)[, 2])
 
 # Adjusted R²
-r2 <- 1 - (summary(gomp)[[3]] ^ 2 * (length(y) - 3) /
-             sum((y - mean(y)) ^ 2))
+r2.adj = r2Adj(y, summary(gomp)[[3]])
 
-r2.adj <- 1 - ((length(y) - 1) / (length(y) - (3 + 1))) * (1 - r2)
-
-# Residual normality tests
+# Normality tests for residuals
 shapiro.test(summary(gomp)$resid)
 lillie.test(summary(gomp)$resid)
 
 # Table with estimated weights and confidence intervals
-est.y <- fitted(gomp)
-IC.upp <- (est.y + qt(0.975, summary(gomp)$df[2]) *
-             summary(gomp)$sigma)
-
-IC.low <- (est.y - qt(0.975, summary(gomp)$df[2]) *
-             summary(gomp)$sigma)
-
-est.freq <- matrix(c(est.y, IC.low, IC.upp), nrow=8, ncol=3)
-colnames(est.freq) <- c("Estimate",	"CI lower limit",	"CI upper limit")
-rownames(est.freq) <- paste(x)
+est.y <- as.vector(fitted(gomp))
+est.freq <- data.frame(
+  "Age"=x, "Weight"=est.y,
+  "CI_lower_limit"=(est.y - qt(0.975, summary(gomp)$df[2]) *
+                      summary(gomp)$sigma),
+  "CI_upper_limit"=(est.y + qt(0.975, summary(gomp)$df[2]) *
+                      summary(gomp)$sigma))
 
 # RMSE and BIC
-res.f <- summary(gomp)$resid
-rmse.f <- RMSE(res.f)
-bic.f <- BIC_func(y, res.f)
+res.freq <- summary(gomp)$resid
+rmse.freq <- RMSE(res.freq)
+bic.freq <- BIC_func(y, res.freq)
 
 #### ====================== PRIOR INFORMATION ===================== ####
 # Model fit for obtaining prior information about the parameters
-gomp.sarm <- nls(y.sarm ~ (
-  alpha * exp(-beta * exp(-gamma * x.sarm))),
-  start=c(alpha=30.0, beta=0.9, gamma=0.01))
+# and its results table
+prior.params = data.frame(row.names=c("alpha", "beta",
+                                      "gamma", "sigma"))
 
-gomp.malhad <- nls(y.malhad ~ (
-  alpha * exp(-beta * exp(-gamma * x.malhad))),
-  start=c(alpha=30.0, beta=0.9, gamma=0.01))
-
-gomp.car <- nls(y.car ~ (
-  alpha * exp(-beta * exp(-gamma * x.car))),
-  start=c(alpha=30.0, beta=0.9, gamma=0.01))
-
-gomp.o <- nls(y.o ~ (
-  alpha * exp(-beta * exp(-gamma * x.o))),
-  start=c(alpha=30.0, beta=0.9, gamma=0.01))
-
-gomp.teix <- nls(y.teix ~ (
-  alpha * exp(-beta * exp(-gamma * x.teix))),
-  start=c(alpha=30.0, beta=0.9, gamma=0.01))
-
-gomp.santos <- nls(y.santos ~ (
-  alpha * exp(-beta * exp(-gamma * x.santos))),
-  start=c(alpha=30.0, beta=0.9, gamma=0.01))
-
-# Results table
-prior.params <- matrix(
-  c(coefficients(gomp.sarm), summary(gomp.sarm)[[3]],
-    coefficients(gomp.malhad), summary(gomp.malhad)[[3]],
-    coefficients(gomp.car), summary(gomp.car)[[3]],
-    coefficients(gomp.o), summary(gomp.o)[[3]],
-    coefficients(gomp.teix), summary(gomp.teix)[[3]],
-    coefficients(gomp.santos), summary(gomp.santos)[[3]]),
-  nrow=4, ncol=6)
-
-colnames(prior.params) <- c("SARMENTO et al. (2006)",
-                            "MALHADO et al. (2008)",
-                            "CARNEIRO et al. (2010)",
-                            "Ó et al. (2012)",
-                            "TEIXEIRA et al. (2012)",
-                            "SANTOS et al. (2014)")
-
-rownames(prior.params) <- c("alpha", "beta", "gamma", "sigma")
+for (i in levels(prior_info$Source)) {
+  x.pr = prior_info[prior_info$Source == i, ]$Age
+  y.pr = prior_info[prior_info$Source == i, ]$Weight
+  gomp.pr = nls(y.pr ~ (alpha * exp(-beta * exp(-gamma * x.pr))),
+                start=c(alpha=30.0, beta=0.9, gamma=0.01))
+  params = c(coefficients(gomp.pr), summary(gomp.pr)[[3]])
+  prior.params[i] <- params
+}
 
 
 #### ========= BAYESIAN APPROACH - NONINFORMATIVE PRIORS ========== ####
