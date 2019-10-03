@@ -1,8 +1,11 @@
+# This script requires OpenBUGS to be already installed on the computer
 
-# Load libraries
-library(R2OpenBUGS)
-library(coda)
-library(nortest)
+library(R2OpenBUGS) # for bugs
+library(coda) # for as.mcmc
+library(nortest) # for lillie.test
+library(ggthemr) # for ggthemr
+library(ggplot2) # for plots
+library(cowplot) # for get_legend
 
 # Sample
 sampl <- read.csv("sample.csv", header=T, sep=";")
@@ -10,7 +13,7 @@ x <- sampl$Age
 y <- sampl$Weight
 
 # Prior information about weight
-prior_info <- read.csv("prior_info.csv", header=T, sep=";")
+prior.info <- read.csv("prior_info.csv", header=T, sep=";")
 
 # Items required to fit the model with OpenBUGS software (Bayesian
 # approach). They are the sample size, the names of the variables, the
@@ -42,12 +45,52 @@ RMSE = function(res) {
   rmse = sqrt(sq_err / n)
 }
 
-# Function for calculating adjusted R²
-# k = numer of regressors, rse = residual standard error
-r2Adj = function(y, rse, k=3) {
-  r2 = 1 - (rse ^ 2 * (length(y) - 3) / sum((y - mean(y)) ^ 2))
-  r2.adj = 1 - ((length(y) - 1) / (length(y) - (k + 1))) * (1 - r2)
+
+#### ======================= PLOTS FOR DATA ======================= ####
+# Theme for plots and function for formatting axes
+ggthemr("fresh", layout="scientific") # Set theme for plots
+formatAxes = function(ggpobj) {
+  ggpobj +
+    scale_y_continuous(
+      breaks=seq(0, 40, 10), minor_breaks=seq(0, 40, 5), limits=c(0, 42)
+    ) +
+    scale_x_continuous(
+      breaks=seq(0, 400, 100), minor_breaks=seq(0, 400, 50),
+      limits=c(0, 420)
+    ) +
+    theme(plot.title = element_text(size=12),
+          axis.text=element_text(size=12))
 }
+
+# Plot for sample
+sample.plot <- ggplot(sampl, aes(x=Age, y=Weight)) +
+  geom_point(size=2, color=swatch()[4]) + 
+  labs(title="Sample", x="Age (days)", y="Weight (kg)")
+
+# Plot for prior information
+prior.plot <- ggplot(prior.info, aes(x=Age, y=Weight, color=Source)) +
+  geom_point(aes(color="Sample"), alpha="0") + # dummy
+  geom_point(size=2) +
+  labs(title="Prior information", x="Age (days)", y=element_blank()) +
+  scale_color_manual(breaks=c("Sample", levels(prior.info$Source)),
+                     values=c(swatch()[2], swatch()[3], swatch()[9],
+                              swatch()[5], swatch()[7], swatch()[4]))
+
+# Legend for plots
+legend.data <- get_legend(prior.plot +
+                          theme(legend.title=element_blank(),
+                                legend.direction="vertical",
+                                legend.box.margin=margin(-20, 0, 0, 0)))
+
+# Joining sample and prior info
+samp.pri.plot <- plot_grid(
+  formatAxes(sample.plot + theme(legend.position="none")),
+  formatAxes(prior.plot + theme(legend.position="none")))
+
+# Complete plot
+data.plot <- plot_grid(samp.pri.plot, legend.data, ncol=2,
+                       rel_widths=c(1, 0.2))
+
 
 #### ==================== FREQUENTIST APPROACH ==================== ####
 # Model fit (Gompertz, nonlinear least sqares)
@@ -59,9 +102,6 @@ results.freq <- data.frame("Estimate"=coefficients(gomp),
                            "CI_lower_limit"=confint(gomp)[, 1],
                            "CI_upper_limit"=confint(gomp)[, 2])
 
-# Adjusted R²
-r2.adj = r2Adj(y, summary(gomp)[[3]])
-
 # Normality tests for residuals
 shapiro.test(summary(gomp)$resid)
 lillie.test(summary(gomp)$resid)
@@ -69,7 +109,7 @@ lillie.test(summary(gomp)$resid)
 # Table with estimated weights and confidence intervals
 est.y <- as.vector(fitted(gomp))
 est.freq <- data.frame(
-  "Age"=x, "Weight"=est.y,
+  "Age"=x, "Freq_est"=est.y,
   "CI_lower_limit"=(est.y - qt(0.975, summary(gomp)$df[2]) *
                       summary(gomp)$sigma),
   "CI_upper_limit"=(est.y + qt(0.975, summary(gomp)$df[2]) *
@@ -80,15 +120,16 @@ res.freq <- summary(gomp)$resid
 rmse.freq <- RMSE(res.freq)
 bic.freq <- BIC_func(y, res.freq)
 
+
 #### ====================== PRIOR INFORMATION ===================== ####
 # Model fit for obtaining prior information about the parameters
 # and its results table
-prior.params = data.frame(row.names=c("alpha", "beta",
-                                      "gamma", "sigma"))
+prior.params <- data.frame(row.names=c("alpha", "beta",
+                                       "gamma", "sigma"))
 
-for (i in levels(prior_info$Source)) {
-  x.pr = prior_info[prior_info$Source == i, ]$Age
-  y.pr = prior_info[prior_info$Source == i, ]$Weight
+for (i in levels(prior.info$Source)) {
+  x.pr = prior.info[prior.info$Source == i, ]$Age
+  y.pr = prior.info[prior.info$Source == i, ]$Weight
   gomp.pr = nls(y.pr ~ (alpha * exp(-beta * exp(-gamma * x.pr))),
                 start=c(alpha=30.0, beta=0.9, gamma=0.01))
   params = c(coefficients(gomp.pr), summary(gomp.pr)[[3]])
@@ -141,13 +182,9 @@ heidel.diag(gomp.0.mcmc)
 
 ## Results table, with parameters and weight estimates ##
 hpd.interval.0 <- HPDinterval(gomp.0.mcmc)
-results.bayes.0 <- matrix(c(gomp.0$summary[, 1], hpd.interval.0),
-                          nrow=14, ncol=3)
-
+results.bayes.0 <- data.frame(gomp.0$summary[, 1], hpd.interval.0)
 colnames(results.bayes.0) <- c("Estimate", "HPD lower limit",
                                "HPD upper limit")
-
-rownames(results.bayes.0) <- c(rownames(hpd.interval.0))
 
 # RMSE and BIC
 res.0 <- unname(y - results.bayes.0[, 1][5:12])
@@ -199,13 +236,9 @@ heidel.diag(gomp.1.mcmc)
 
 ## Results table ##
 hpd.interval.1 <- HPDinterval(gomp.1.mcmc)
-results.bayes.1 <- matrix(c(gomp.1$summary[, 1], hpd.interval.1),
-                          nrow=14, ncol=3)
-
+results.bayes.1 <- data.frame(gomp.1$summary[, 1], hpd.interval.1)
 colnames(results.bayes.1) <- c("Estimate", "HPD lower limit",
                                "HPD upper limit")
-
-rownames(results.bayes.1) <- c(rownames(hpd.interval.1))
 
 # RMSE and BIC
 res.1 <- unname(y - results.bayes.1[, 1][5:12])
@@ -237,7 +270,6 @@ cat("
     }
     
     }", fill=TRUE)
-
 sink()
 
 # Model fit. OpenBUGS will open to run the "bugs" function.
@@ -259,16 +291,90 @@ heidel.diag(gomp.2.mcmc)
 
 ## Results table ##
 hpd.interval.2 <- HPDinterval(gomp.2.mcmc)
-results.bayes.2 <- matrix(c(gomp.2$summary[, 1], hpd.interval.2),
-                          nrow=14, ncol=3)
-
+results.bayes.2 <- data.frame(gomp.2$summary[, 1], hpd.interval.2)
 colnames(results.bayes.2) <- c("Estimate", "HPD lower limit",
                                "HPD upper limit")
-
-rownames(results.bayes.2) <- c(rownames(hpd.interval.2))
 
 # RMSE and BIC
 res.2 <- unname(y - results.bayes.2[, 1][5:12])
 rmse.2 <- RMSE(res.2)
 bic.2 <- BIC_func(y, res.2)
+
+
+#### ===================== PLOTS FOR RESULTS ====================== ####
+# Function for making plots for the results
+makePlot = function(data) {
+  ggplot(data) +
+    geom_line(aes(x=Age, y=Freq_est, color="Frequentist fit"),
+              stat="smooth", method=loess, size=0.75, linetype=1) +
+    geom_line(aes(x=x, y=CI_lower_limit, color="Confidence interval"),
+              stat="smooth", method=loess, size=0.75, linetype=1) +
+    geom_line(aes(x=x, y=CI_upper_limit, color="Confidence interval"),
+              stat="smooth", method=loess, size=0.75, linetype=1) +
+    geom_line(aes(x=Age, y=Estimate, color="Bayesian fit"),
+              stat="smooth", method=loess, size=0.75) +
+    geom_line(aes(x=x, y=HPD.lower.limit, color="95% HPD"),
+              stat="smooth", method=loess, size=0.75, linetype=2) +
+    geom_line(aes(x=x, y=HPD.upper.limit, color="95% HPD"),
+              stat="smooth", method=loess, size=0.75, linetype=2) +
+    geom_point(aes(x=Age, y=Weight, color="Sample"), size=2
+    ) +
+    labs(x="Age (days)", y="Weight (kg)") +
+    theme(plot.title = element_text(size=12),
+          axis.text=element_text(size=12)) +
+    scale_y_continuous(
+      breaks=seq(0, 40, 10), minor_breaks=seq(0, 40, 5),
+      limits=c(0, 42)
+    ) +
+    scale_x_continuous(
+      breaks=seq(0, 210, 105), minor_breaks=seq(0, 210, 26.25),
+      limits=c(0, 220)
+    ) +
+    scale_color_manual(name=NULL,
+      breaks=c("Sample", "Frequentist fit", "Confidence interval",
+               "Bayesian fit", "95% HPD"),
+      values=c(swatch()[3], swatch()[3], swatch()[2],
+               swatch()[2], swatch()[4]))
+}
+
+# Joined data of sample and results
+all.results.0 <- data.frame(sampl[-1], est.freq[-1],
+                            results.bayes.0[5:12, ])
+
+all.results.1 <- data.frame(sampl[-1], est.freq[-1],
+                            results.bayes.1[5:12, ])
+
+all.results.2 <- data.frame(sampl[-1], est.freq[-1],
+                            results.bayes.2[5:12, ])
+
+# Plots for results containing frequentist and the 3 Bayeian approaches 
+results.0.plot <- makePlot(all.results.0)
+results.1.plot <- makePlot(all.results.1)
+results.2.plot <- makePlot(all.results.2) +
+  guides(colour=guide_legend(  # Format legend
+    override.aes=list(shape=c(19, rep(32, 4)),
+                      linetype=c("blank", rep("solid", 3), "dashed"))))
+
+# Legend for plots
+legend.results <- get_legend(results.2.plot + theme(
+  legend.title=element_blank(),
+  legend.direction="horizontal",
+  legend.box.margin=margin(0, 0, 0, 0)))
+
+# Joining the three plots
+res.012.plot <- plot_grid(nrow=1,
+  results.0.plot +
+    theme(legend.position="none") + labs(title="Noninformative"),
+  results.1.plot +
+    theme(legend.position="none") +
+    labs(title="Informative", y=element_blank()),
+  results.2.plot +
+    theme(legend.position="none") +
+    labs(title="Inf. with greater dispersion", y=element_blank())
+  )
+
+# Complete plot
+results.plot <- plot_grid(res.012.plot, legend.results, nrow=2,
+                          rel_heights=c(1, 0.2))
+
 
