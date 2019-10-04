@@ -1,6 +1,7 @@
 # This script requires OpenBUGS to be already installed on the computer
 
-library(R2OpenBUGS) # for bugs
+library(rjags)
+library(R2jags) # for jags
 library(coda) # for as.mcmc
 library(nortest) # for lillie.test
 library(ggthemr) # for ggthemr
@@ -138,43 +139,35 @@ for (i in levels(prior.info$Source)) {
 
 
 #### ========= BAYESIAN APPROACH - NONINFORMATIVE PRIORS ========== ####
-# Creating a text file to run the "bugs" function in OpenBUGS software
-sink("gomp_0.txt")
-cat("
-    model{
-    
-    # PRIOR DISTRIBUTIONS
-    alpha ~ dnorm(0.0, 0.0001)
-    beta ~ dnorm(0.0, 0.0001)
-    gamma ~ dunif(0.0, 1.0000)
-    tau2 ~ dgamma(0.1, 0.1)
-    
-    # MODEL
-    for(i in 1 : n) {
+# Creating a function to run the jags function
+gomp.0.F <- function() {
+  # Prior distributions
+  alpha ~ dnorm(0.0, 0.0001)
+  beta ~ dnorm(0.0, 0.0001)
+  gamma ~ dunif(0.0, 1.0000)
+  tau2 ~ dgamma(0.1, 0.1)
+  
+  # Model
+  for(i in 1 : n) {
     y[i] ~ dnorm(mu[i], tau2)
     mu[i] <- alpha * exp(-beta * exp(-gamma * x[i]))
-    }
-    
-    # ESTIMATES FOR WEIGHT
-    for(i in 1 : n) {
+  }
+  
+  # Estimates for weight
+  for(i in 1 : n) {
     yp[i] <- alpha * exp(-beta * exp(-gamma * x[i]))
-    }
-    
-    }", fill=TRUE)
-sink()
+  }
+}
 
-# Model fit. OpenBUGS will open to run the "bugs" function.
-# OpenBUGS has to be closed after it finishes running its algorithm so
-# the results can return to R.
-gomp.0 = bugs(data, inits.gomp,
-              model.file="gomp_0.txt",
-              parameters=c(theta, "yp"),
-              n.chains=1, n.iter=25000, n.burnin=4500, n.thin=5,
-              codaPkg=FALSE, debug=T)
+# Model fit
+gomp.0 <- jags(data, inits.gomp,
+               parameters=c(theta, "yp"),
+               model.file=gomp.0.F,
+               n.chains=1, n.iter=25000, n.burnin=4500, n.thin=5)
 
 ## Convergence tests ##
 # Save bugs object as MCMC object
-gomp.0.mcmc <- as.mcmc(gomp.0$sims.matrix[, ])
+gomp.0.mcmc <- as.mcmc(gomp.0$BUGSoutput$sims.matrix[, ])
 # Tests
 geweke.diag(gomp.0.mcmc)
 raftery.diag(gomp.0.mcmc)
@@ -182,7 +175,8 @@ heidel.diag(gomp.0.mcmc)
 
 ## Results table, with parameters and weight estimates ##
 hpd.interval.0 <- HPDinterval(gomp.0.mcmc)
-results.bayes.0 <- data.frame(gomp.0$summary[, 1], hpd.interval.0)
+results.bayes.0 <- data.frame(gomp.0$BUGSoutput$summary[, 1],
+                              hpd.interval.0)[-3, ]
 colnames(results.bayes.0) <- c("Estimate", "HPD lower limit",
                                "HPD upper limit")
 
@@ -192,43 +186,35 @@ rmse.0 <- RMSE(res.0)
 bic.0 <- BIC_func(y, res.0)
 
 #### ========== BAYESIAN APPROACH - INFORMATIVE PRIORS ============ ####
-# Creating a text file to run the "bugs" function in OpenBUGS software
-sink("gomp_1.txt")
-cat("
-    model{
-    
-    # PRIOR DISTRIBUTIONS
-    alpha ~ dnorm(29.6760, 0.0360)
-    beta ~ dnorm(1.9966, 26.2314)
-    gamma ~ dunif(0.0081, 0.0193)
-    tau2 ~ dgamma(19.9023, 21.7393)
-    
-    # MODEL
-    for(i in 1 : n) {
+# Creating a function to run the jags function
+gomp.1.F <- function() {
+  # Prior distributions
+  alpha ~ dnorm(29.6760, 0.0360)
+  beta ~ dnorm(1.9966, 26.2314)
+  gamma ~ dunif(0.0081, 0.0193)
+  tau2 ~ dgamma(19.9023, 21.7393)
+  
+  # Model
+  for(i in 1 : n) {
     y[i] ~ dnorm(mu[i], tau2)
     mu[i] <- alpha * exp(-beta * exp(-gamma * x[i]))
-    }
-    
-    # ESTIMATES FOR WEIGHT
-    for(i in 1 : n) {
+  }
+  
+  # Estimates for weight
+  for(i in 1 : n) {
     yp[i] <- alpha * exp(-beta * exp(-gamma * x[i]))
-    }
-    
-    }", fill=TRUE)
-sink()
+  }
+}
 
-# Model fit. OpenBUGS will open to run the "bugs" function.
-# OpenBUGS has to be closed after it finishes running its algorithm so
-# the results can return to R.
-gomp.1 = bugs(data, inits.gomp,
-              model.file="gomp_1.txt",
-              parameters=c(theta, "yp"),
-              n.chains=1, n.iter=25000, n.burnin=4500, n.thin=5,
-              codaPkg=FALSE, debug=T)
+# Model fit
+gomp.1 <- jags(data, inits.gomp,
+               parameters=c(theta, "yp"),
+               model.file=gomp.1.F,
+               n.chains=1, n.iter=25000, n.burnin=4500, n.thin=5)
 
 ## Convergence tests ##
 # Save bugs object as MCMC object
-gomp.1.mcmc <- as.mcmc(gomp.1$sims.matrix[, ])
+gomp.1.mcmc <- as.mcmc(gomp.1$BUGSoutput$sims.matrix[, ])
 # Tests
 geweke.diag(gomp.1.mcmc)
 raftery.diag(gomp.1.mcmc)
@@ -236,7 +222,8 @@ heidel.diag(gomp.1.mcmc)
 
 ## Results table ##
 hpd.interval.1 <- HPDinterval(gomp.1.mcmc)
-results.bayes.1 <- data.frame(gomp.1$summary[, 1], hpd.interval.1)
+results.bayes.1 <- data.frame(gomp.1$BUGSoutput$summary[, 1],
+                              hpd.interval.1)[-3, ]
 colnames(results.bayes.1) <- c("Estimate", "HPD lower limit",
                                "HPD upper limit")
 
@@ -247,43 +234,35 @@ bic.1 <- BIC_func(y, res.1)
 
 
 #### ==== BAYESIAN APPROACH - INF. PRIORS (GREATER DISPERSION) ==== ####
-# Creating a text file to run the "bugs" function in OpenBUGS software
-sink("gomp_2.txt")
-cat("
-    model{
-    
-    # PRIOR DISTRIBUTIONS
-    alpha ~ dnorm(29.6760, 0.0090)
-    beta ~ dnorm(1.9966, 6.5578)
-    gamma ~ dunif(0.0000, 0.0361)
-    tau2 ~ dgamma(6.3176, 6.9007)
-    
-    # MODEL
-    for(i in 1 : n) {
+# Creating a function to run the jags function
+gomp.2.F <- function() {
+  # Prior distributions
+  alpha ~ dnorm(29.6760, 0.0090)
+  beta ~ dnorm(1.9966, 6.5578)
+  gamma ~ dunif(0.0000, 0.0361)
+  tau2 ~ dgamma(6.3176, 6.9007)
+  
+  # Model
+  for(i in 1 : n) {
     y[i] ~ dnorm(mu[i], tau2)
     mu[i] <- alpha * exp(-beta * exp(-gamma * x[i]))
-    }
-    
-    # ESTIMATES FOR WEIGHT
-    for(i in 1 : n) {
+  }
+  
+  # Estimates for weight
+  for(i in 1 : n) {
     yp[i] <- alpha * exp(-beta * exp(-gamma * x[i]))
-    }
-    
-    }", fill=TRUE)
-sink()
+  }
+}
 
-# Model fit. OpenBUGS will open to run the "bugs" function.
-# OpenBUGS has to be closed after it finishes running its algorithm so
-# the results can return to R.
-gomp.2 = bugs(data, inits.gomp,
-              model.file="gomp_2.txt",
-              parameters=c(theta, "yp"),
-              n.chains=1, n.iter=25000, n.burnin=4500, n.thin=5,
-              codaPkg=FALSE, debug=T)
+# Model fit
+gomp.2 <- jags(data, inits.gomp,
+               parameters=c(theta, "yp"),
+               model.file=gomp.2.F,
+               n.chains=1, n.iter=25000, n.burnin=4500, n.thin=5)
 
 ## Convergence tests ##
 # Save bugs object as MCMC object
-gomp.2.mcmc <- as.mcmc(gomp.2$sims.matrix[, ])
+gomp.2.mcmc <- as.mcmc(gomp.2$BUGSoutput$sims.matrix[, ])
 # Tests
 geweke.diag(gomp.2.mcmc)
 raftery.diag(gomp.2.mcmc)
@@ -291,7 +270,8 @@ heidel.diag(gomp.2.mcmc)
 
 ## Results table ##
 hpd.interval.2 <- HPDinterval(gomp.2.mcmc)
-results.bayes.2 <- data.frame(gomp.2$summary[, 1], hpd.interval.2)
+results.bayes.2 <- data.frame(gomp.2$BUGSoutput$summary[, 1],
+                              hpd.interval.2)[-3, ]
 colnames(results.bayes.2) <- c("Estimate", "HPD lower limit",
                                "HPD upper limit")
 
