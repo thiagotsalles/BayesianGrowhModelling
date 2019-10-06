@@ -233,15 +233,15 @@ rmse.1 <- RMSE(res.1)
 bic.1 <- BIC_func(y, res.1)
 
 
-#### ==== BAYESIAN APPROACH - INF. PRIORS (GREATER DISPERSION) ==== ####
+#### ======= BAYESIAN APPROACH - INF. PRIORS (6x VARIANCE) ======== ####
 # Creating a function to run the jags function
 gomp.2.F <- function() {
   # Prior distributions
-  alpha ~ dnorm(29.6760, 0.0090)
-  beta ~ dnorm(1.9966, 6.5578)
-  gamma ~ dunif(0.0000, 0.0361)
-  tau2 ~ dgamma(6.3176, 6.9007)
-  
+  alpha ~ dnorm(29.6760, 0.0060)
+  beta ~ dnorm(1.9966, 4.3719)
+  gamma ~ dunif(0.0000, 0.0274)
+  tau2 ~ dgamma(0.1, 0.1)
+
   # Model
   for(i in 1 : n) {
     y[i] ~ dnorm(mu[i], tau2)
