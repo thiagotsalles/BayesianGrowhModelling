@@ -1,8 +1,8 @@
 old/
+paper/
 
 *.cdr
 *.tif
-*.docx
 *.txt
 *.Rhistory
 *.RData
