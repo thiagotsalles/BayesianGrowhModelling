@@ -7,6 +7,7 @@ library(nortest) # for lillie.test
 library(ggthemr) # for ggthemr
 library(ggplot2) # for plots
 library(cowplot) # for get_legend
+ggthemr("fresh", layout="scientific") # Set theme for plots
 
 # Sample
 sampl <- read.csv("sample.csv", header=T, sep=";")
@@ -48,8 +49,7 @@ RMSE = function(res) {
 
 
 #### ======================= PLOTS FOR DATA ======================= ####
-# Theme for plots and function for formatting axes
-ggthemr("fresh", layout="scientific") # Set theme for plots
+# Function for formatting axes
 formatAxes = function(ggpobj) {
   ggpobj +
     scale_y_continuous(
@@ -65,7 +65,7 @@ formatAxes = function(ggpobj) {
 
 # Plot for sample
 sample.plot <- ggplot(sampl, aes(x=Age, y=Weight)) +
-  geom_point(size=2, color=swatch()[4]) + 
+  geom_point(size=2, color=swatch()[3]) + 
   labs(title="Sample", x="Age (days)", y="Weight (kg)")
 
 # Plot for prior information
@@ -74,8 +74,8 @@ prior.plot <- ggplot(prior.info, aes(x=Age, y=Weight, color=Source)) +
   geom_point(size=2) +
   labs(title="Prior information", x="Age (days)", y=element_blank()) +
   scale_color_manual(breaks=c("Sample", levels(prior.info$Source)),
-                     values=c(swatch()[2], swatch()[3], swatch()[9],
-                              swatch()[5], swatch()[7], swatch()[4]))
+                     values=c(swatch()[2], swatch()[9], swatch()[4],
+                              swatch()[5], swatch()[7], swatch()[3]))
 
 # Legend for plots
 legend.data <- get_legend(prior.plot +
@@ -313,8 +313,8 @@ makePlot = function(data) {
     scale_color_manual(name=NULL,
       breaks=c("Sample", "Frequentist fit", "Confidence interval",
                "Bayesian fit", "95% HPD"),
-      values=c(swatch()[3], swatch()[3], swatch()[2],
-               swatch()[2], swatch()[4]))
+      values=c(swatch()[4], swatch()[4], swatch()[2],
+               swatch()[2], swatch()[3]))
 }
 
 # Joined data of sample and results
