@@ -6,11 +6,13 @@ The R_script contains the full methodology and its execution.
 ## Data
 The sample comprises recently observed data. The prior information are previous observations of data.
 Sample is used in frequentist approach, while Bayesian approach uses sample combined with prior information.
-![Data](./Images/fig1.png "Data")
+
+<img src="./Images/fig1.png" width="600">
 
 ## Model
 The Gompertz model was used to describe growht:
-![Gopmpertz model](./Images/gompertz.png "Gopmpertz model")
+
+<img src="./Images/gompertz.png" width="300">
 
 where *y* represents the weight, in kg; *t* is the age, in days; *α*, *β* and *γ* are the model parameters; and *ε* is the random error, being that *ε* ~ *N*(0,σ<sup>2</sup>) .
 
@@ -22,7 +24,8 @@ Three options of prior distributions were tested:
 
 ## Results
 Both frequentist and Bayesian approaches presented similar goodness of fit.
-![Results](./Images/results.png "Results")
+
+<img src="./Images/results.png" width="680">
 
 Bayesian approach using informative prior left observed values outside 95% HPD.
 The HPD 95% is the narrowest interval in the credible interval (Bayesian equivalent of the confidence interval) which contains 95% of the probable values of the studied parameter (weight).
