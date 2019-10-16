@@ -1,4 +1,4 @@
-# This script requires OpenBUGS to be already installed on the computer
+# This script requires JAGS to be installed on the computer
 
 library(rjags)
 library(R2jags) # for jags
@@ -350,7 +350,7 @@ res.012.plot <- plot_grid(nrow=1,
     labs(title="Informative", y=element_blank()),
   results.2.plot +
     theme(legend.position="none") +
-    labs(title="Inf. with greater dispersion", y=element_blank())
+    labs(title="Inf. with greater variance", y=element_blank())
   )
 
 # Complete plot
