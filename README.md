@@ -1,7 +1,7 @@
 # Bayesian Growth Modelling
 Research project aimed at modelling the growht (weight) of animals via frequentist and Bayesian approaches.\
 This study is waiting to be published in a journal. Once published, further details about the data and methodology and also a link to the paper will be provided.\
-BayesianGrowhModelling.R contains the full methodology and its execution.
+BayesianGrowhModelling.R contains the execution of the project.
 
 ## Data
 The sample comprises recently observed data. The prior information are previous observations of data.\
