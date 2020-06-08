@@ -33,4 +33,4 @@ Three options of prior distributions were tested:\
 • Informative with greater variance (moderate influence on model fit).
 
 ## Graphical abstract
-<img src="./Images/abstract.jpg" width="800">
+<img src="./Images/graphicalAbstract.png" width="800">
