@@ -5,6 +5,14 @@ All details about methodology and results are on
 [https://doi.org/10.1016/j.livsci.2020.104115](https://doi.org/10.1016/j.livsci.2020.104115).\
 BayesianGrowhModelling.R contains the execution of the project.
 
+## Highlights
+• A way of combining sample and prior information in growth modelling is presented.\
+• Growth modelling benefits from Bayesian approach.\
+• Prior information improves estimates but its predominance may produce inconsistencies.
+
+## Abstract
+Growth models are used to understand the relationships in production during the life of an animal, being an abstraction of their natural dynamics. In this context, the objective of this research was to fit a curve for weight of Santa Ines sheep using frequentist and Bayesian approaches, present strategies for eliciting prior distributions for the latter and compare the results obtained with each one. Growth data from a literature study was used as sample. The parameter estimates were obtained using nonlinear least squares in the frequentist approach and using Monte Carlo method via Markov Chains algorithms in the Bayesian approach. Noninformative and informative prior distributions were used in the Bayesian approach, with prior information coming from other six studies. A methodology for eliciting informative prior distributions was provided. Prior information contributed to more precise estimates of sheep weight. It was seen that predominance of prior information may produce inconsistent interval estimates. Although the values of the parameters estimated by the two approaches were similar, the use of the Bayesian approach, together with the prior distributions, allowed for good and more precise estimates when compared to the frequentist approach.
+
 ## Data
 The sample comprises recently observed data. The prior information are previous observations of data.\
 Sample is used in frequentist approach, while Bayesian approach uses sample combined with prior information.
@@ -24,11 +32,5 @@ Three options of prior distributions were tested:\
 • Informative (considerable influence on model fit).\
 • Informative with greater variance (moderate influence on model fit).
 
-## Results
-Both frequentist and Bayesian approaches presented similar goodness of fit.
-
-<img src="./Images/results.png" width="680">
-
-Bayesian approach using informative prior left observed values outside 95% HPD.\
-The HPD 95% is the narrowest interval in the credible interval (Bayesian equivalent of the confidence interval) which contains 95% of the probable values of the studied parameter (weight).\
-Bayesian approach using informative prior with greater variance presented slightly better goodness of fit and precision.
+## Graphical abstract
+<img src="./Images/abstract.jpg" width="800">
