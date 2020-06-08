@@ -1,6 +1,8 @@
-# Bayesian Growth Modelling
+# Bayesian growth modelling
 Research project aimed at modelling the growht (weight) of animals via frequentist and Bayesian approaches.\
-This study is waiting to be published in a journal. Once published, further details about the data and methodology and also a link to the paper will be provided.\
+This study is published in Livestock Science.\
+All details about methodology and results are on
+[https://doi.org/10.1016/j.livsci.2020.104115](https://doi.org/10.1016/j.livsci.2020.104115).\
 BayesianGrowhModelling.R contains the execution of the project.
 
 ## Data
